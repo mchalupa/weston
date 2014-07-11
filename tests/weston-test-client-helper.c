@@ -765,3 +765,51 @@ client_create(int x, int y, int width, int height)
 
 	return client;
 }
+
+void
+client_destroy(struct client *client)
+{
+	struct surface *surface;
+	int err;
+
+	surface = client->surface;
+
+	if (client->xdg_shell) {
+		xdg_surface_destroy(surface->xdg_surface);
+		xdg_shell_destroy(client->xdg_shell);
+	}
+
+	wl_buffer_destroy(surface->wl_buffer);
+	wl_surface_destroy(surface->wl_surface);
+
+	/* free input */
+	if (client->input->pointer) {
+		wl_pointer_destroy(client->input->pointer->wl_pointer);
+		free(client->input->pointer);
+	}
+	if (client->input->keyboard) {
+		wl_keyboard_destroy(client->input->keyboard->wl_keyboard);
+		free(client->input->keyboard);
+	}
+
+	wl_seat_destroy(client->input->wl_seat);
+	free(client->input);
+
+	/* free outputs */
+	wl_output_destroy(client->output->wl_output);
+	free(client->output);
+
+	wl_test_destroy(client->test->wl_test);
+	free(client->test);
+
+	wl_compositor_destroy(client->wl_compositor);
+	wl_shm_destroy(client->wl_shm);
+	wl_registry_destroy(client->wl_registry);
+
+	client_roundtrip(client);
+
+	err = wl_display_get_error(client->wl_display);
+	assert(err == 0 && "Error in display");
+
+	wl_display_disconnect(client->wl_display);
+}
