@@ -221,6 +221,28 @@ get_n_buffers(struct wl_client *client, struct wl_resource *resource)
 	wl_test_send_n_egl_buffers(resource, n_buffers);
 }
 
+static void
+get_geometry(struct wl_client *client, struct wl_resource *resource,
+	     struct wl_resource *surface_resource)
+{
+	struct weston_view *view;
+	struct weston_surface *surface =
+		wl_resource_get_user_data (surface_resource);
+
+	if (surface->configure)
+		view = wl_container_of(surface->views.next, view, surface_link);
+	else
+		view = surface->configure_private;
+
+	/* not created yet */
+	if (!view)
+		return;
+
+	wl_test_send_geometry(resource, surface_resource,
+			      surface->width, surface->height,
+			      view->geometry.x, view->geometry.y);
+}
+
 static const struct wl_test_interface test_implementation = {
 	move_surface,
 	move_pointer,
@@ -228,6 +250,7 @@ static const struct wl_test_interface test_implementation = {
 	activate_surface,
 	send_key,
 	get_n_buffers,
+	get_geometry
 };
 
 static void
