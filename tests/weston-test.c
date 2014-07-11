@@ -41,13 +41,6 @@ struct weston_test {
 	struct weston_process process;
 };
 
-struct weston_test_surface {
-	struct weston_surface *surface;
-	struct weston_view *view;
-	int32_t x, y;
-	struct weston_test *test;
-};
-
 static void
 test_client_sigchld(struct weston_process *process, int status)
 {
@@ -88,19 +81,15 @@ notify_pointer_position(struct weston_test *test, struct wl_resource *resource)
 }
 
 static void
-test_surface_configure(struct weston_surface *surface, int32_t sx, int32_t sy)
+update_position(struct weston_test *test, struct weston_view *view,
+		int32_t x, int32_t y)
 {
-	struct weston_test_surface *test_surface = surface->configure_private;
-	struct weston_test *test = test_surface->test;
-
-	if (wl_list_empty(&test_surface->view->layer_link.link))
+	if (wl_list_empty(&view->layer_link.link))
 		weston_layer_entry_insert(&test->layer.view_list,
-					  &test_surface->view->layer_link);
+					  &view->layer_link);
 
-	weston_view_set_position(test_surface->view,
-				 test_surface->x, test_surface->y);
-
-	weston_view_update_transform(test_surface->view);
+	weston_view_set_position(view, x, y);
+	weston_view_update_transform(view);
 }
 
 static void
@@ -110,31 +99,28 @@ move_surface(struct wl_client *client, struct wl_resource *resource,
 {
 	struct weston_surface *surface =
 		wl_resource_get_user_data(surface_resource);
-	struct weston_test_surface *test_surface;
+	struct weston_test *test = wl_resource_get_user_data(resource);
+	struct weston_view *view;
 
-	test_surface = surface->configure_private;
-	if (!test_surface) {
-		test_surface = malloc(sizeof *test_surface);
-		if (!test_surface) {
-			wl_resource_post_no_memory(resource);
-			return;
+	/* has shell surface? */
+	if (surface->configure) {
+		view = wl_container_of(surface->views.next, view, surface_link);
+		assert (view && "No view in surface views list");
+	} else {
+		if (!surface->configure_private) {
+			view = weston_view_create(surface);
+			if (!view) {
+				wl_resource_post_no_memory(resource);
+				return;
+			}
+
+			surface->configure_private = view;
+		} else {
+			view = surface->configure_private;
 		}
-
-		test_surface->view = weston_view_create(surface);
-		if (!test_surface->view) {
-			wl_resource_post_no_memory(resource);
-			free(test_surface);
-			return;
-		}
-
-		surface->configure_private = test_surface;
-		surface->configure = test_surface_configure;
 	}
 
-	test_surface->surface = surface;
-	test_surface->test = wl_resource_get_user_data(resource);
-	test_surface->x = x;
-	test_surface->y = y;
+	update_position(test, view, x, y);
 }
 
 static void
