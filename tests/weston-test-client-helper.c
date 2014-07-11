@@ -297,6 +297,115 @@ static const struct wl_surface_listener surface_listener = {
 	surface_leave
 };
 
+
+static void
+xdg_shell_handle_ping (void *data, struct xdg_shell *xdg_shell, uint32_t serial)
+{
+	struct client *client = data;
+
+	if (client->last_ping_serial && client->last_ping_serial != serial - 1)
+		fprintf(stderr, "test-client: got non-sequential ping serial."
+				"(%u instead of %u)\n", serial,
+				client->last_ping_serial + 1);
+
+	client->last_ping_serial = serial;
+
+	xdg_shell_pong (xdg_shell, serial);
+	fprintf (stderr, "test-client: got ping with serial %u, sent pong\n", serial);
+}
+
+static const struct xdg_shell_listener xdg_shell_listener = {
+	xdg_shell_handle_ping
+};
+
+static void
+resize_surface(struct client *client, int32_t width, int32_t height)
+{
+	struct surface *surface = client->surface;
+
+	if (!width && !height)
+		return;
+
+	assert(surface->wl_surface);
+
+	if (surface->wl_buffer)
+		wl_buffer_destroy (surface->wl_buffer);
+
+	surface->wl_buffer = create_shm_buffer(client, width, height,
+					       &surface->data);
+	assert(surface->wl_buffer);
+
+	memset(surface->data, 64, width * height * 4);
+
+	wl_surface_attach(surface->wl_surface, surface->wl_buffer, 0, 0);
+	wl_surface_damage(surface->wl_surface, 0, 0, width, height);
+	wl_surface_commit(surface->wl_surface);
+
+	surface->width = width;
+	surface->height = height;
+}
+
+static void
+xdg_surface_handle_configure (void *data, struct xdg_surface *xdg_surface,
+			      int32_t width, int32_t height,
+			      struct wl_array *states, uint32_t serial)
+{
+	struct client *client = data;
+	struct surface *surface = client->surface;
+	enum xdg_surface_state *st;
+
+	fprintf (stderr, "test-client: xdg_surface.configure:\n");
+	fprintf (stderr, "\twidth: %d, height: %d\n", width, height);
+
+	surface->fullscreen = 0;
+	surface->maximized = 0;
+	surface->resizing = 0;
+	surface->activated = 0;
+
+	wl_array_for_each(st, states) {
+		switch (*st) {
+		case XDG_SURFACE_STATE_FULLSCREEN:
+			fprintf (stderr, "\tfullscreen\n");
+			surface->fullscreen = 1;
+			break;
+		case XDG_SURFACE_STATE_MAXIMIZED:
+			fprintf (stderr, "\tmaximized\n");
+			surface->maximized = 1;
+			break;
+		case XDG_SURFACE_STATE_RESIZING:
+			fprintf (stderr, "\tresizing\n");
+			surface->resizing = 1;
+			break;
+		case XDG_SURFACE_STATE_ACTIVATED:
+			fprintf (stderr, "\tactivated\n");
+			surface->activated = 1;
+			break;
+		default:
+			assert (0 && "Unkown state");
+		}
+	}
+
+	if (surface->width != width || surface->height != height)
+		resize_surface(client, width, height);
+
+	xdg_surface_ack_configure (xdg_surface, serial);
+}
+
+static void
+xdg_surface_handle_close (void *data, struct xdg_surface *xdg_surface)
+{
+	struct client *client = data;
+
+	client->surface->close = 1;
+
+	fprintf (stderr, "test-client: xdg_surface.close\n");
+}
+
+static const struct xdg_surface_listener xdg_surface_listener = {
+	xdg_surface_handle_configure,
+	xdg_surface_handle_close
+};
+
 struct wl_buffer *
 create_shm_buffer(struct client *client, int width, int height, void **pixels)
 {
@@ -493,6 +602,14 @@ handle_global(void *data, struct wl_registry *registry,
 					 &wl_test_interface, 1);
 		wl_test_add_listener(test->wl_test, &test_listener, test);
 		client->test = test;
+	} else if (strcmp(interface, "xdg_shell") == 0) {
+		client->xdg_shell =
+			wl_registry_bind(registry, id,
+					 &xdg_shell_interface, 1);
+		assert(client->xdg_shell);
+
+		xdg_shell_add_listener(client->xdg_shell, &xdg_shell_listener, client);
+		xdg_shell_use_unstable_version (client->xdg_shell, 3);
 	}
 }
 
@@ -613,12 +730,18 @@ client_create(int x, int y, int width, int height)
 	client->surface = surface;
 	wl_surface_set_user_data(surface->wl_surface, surface);
 
-	surface->width = width;
-	surface->height = height;
-	surface->wl_buffer = create_shm_buffer(client, width, height,
-					       &surface->data);
+	resize_surface(client, width, height);
 
-	memset(surface->data, 64, width * height * 4);
+	if (client->xdg_shell) {
+		surface->xdg_surface =
+			xdg_shell_get_xdg_surface(client->xdg_shell,
+						  surface->wl_surface);
+		assert(surface->xdg_surface);
+
+		xdg_surface_add_listener(surface->xdg_surface,
+					 &xdg_surface_listener, client);
+		xdg_surface_set_title(surface->xdg_surface, "test client");
+	}
 
 	move_client(client, x, y);
 

@@ -28,18 +28,21 @@
 #include <assert.h>
 #include "weston-test-runner.h"
 #include "wayland-test-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 struct client {
 	struct wl_display *wl_display;
 	struct wl_registry *wl_registry;
 	struct wl_compositor *wl_compositor;
 	struct wl_shm *wl_shm;
+	struct xdg_shell *xdg_shell;
 	struct test *test;
 	struct input *input;
 	struct output *output;
 	struct surface *surface;
 	int has_argb;
 	struct wl_list global_list;
+	uint32_t last_ping_serial;
 };
 
 struct global {
@@ -92,6 +95,7 @@ struct output {
 
 struct surface {
 	struct wl_surface *wl_surface;
+	struct xdg_surface *xdg_surface;
 	struct wl_buffer *wl_buffer;
 	struct output *output;
 	int x;
@@ -99,6 +103,11 @@ struct surface {
 	int width;
 	int height;
 	void *data;
+	unsigned int fullscreen : 1;
+	unsigned int maximized : 1;
+	unsigned int resizing : 1;
+	unsigned int activated : 1;
+	unsigned int close : 1;
 };
 
 struct client *

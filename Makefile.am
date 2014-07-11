@@ -902,7 +902,9 @@ libtest_client_la_SOURCES =			\
 	tests/weston-test-client-helper.h
 nodist_libtest_client_la_SOURCES =		\
 	protocol/wayland-test-protocol.c	\
-	protocol/wayland-test-client-protocol.h
+	protocol/wayland-test-client-protocol.h	\
+	protocol/xdg-shell-protocol.c		\
+	protocol/xdg-shell-client-protocol.h
 libtest_client_la_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
 libtest_client_la_LIBADD = $(TEST_CLIENT_LIBS) libshared.la libtest-runner.la
 
