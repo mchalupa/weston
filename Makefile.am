@@ -831,7 +831,8 @@ weston_tests =					\
 	event.weston				\
 	button.weston				\
 	text.weston				\
-	subsurface.weston
+	subsurface.weston			\
+	client.weston
 
 
 AM_TESTS_ENVIRONMENT = \
@@ -923,6 +924,10 @@ event_weston_LDADD = libtest-client.la
 button_weston_SOURCES = tests/button-test.c
 button_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
 button_weston_LDADD = libtest-client.la
+
+client_weston_SOURCES = tests/client-test.c
+client_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+client_weston_LDADD = libtest-client.la
 
 text_weston_SOURCES = tests/text-test.c
 nodist_text_weston_SOURCES =			\
