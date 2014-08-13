@@ -131,6 +131,15 @@ surface_contains(struct surface *surface, int x, int y);
 void
 move_client(struct client *client, int x, int y);
 
+void
+move_pointer(struct client *client, int x, int y);
+
+void
+send_button(struct client *client, uint32_t button, uint32_t state);
+
+void
+send_key(struct client *client, uint32_t key, uint32_t state);
+
 #define client_roundtrip(c) do { \
 	assert(wl_display_roundtrip((c)->wl_display) >= 0); \
 } while (0)
