@@ -132,6 +132,18 @@ void
 move_client(struct client *client, int x, int y);
 
 void
+maximize_client(struct client *client);
+
+void
+unmaximize_client(struct client *client);
+
+void
+fullscreen_client(struct client *client);
+
+void
+unfullscreen_client(struct client *client);
+
+void
 move_pointer(struct client *client, int x, int y);
 
 void

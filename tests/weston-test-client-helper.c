@@ -116,6 +116,67 @@ move_client(struct client *client, int x, int y)
 }
 
 void
+maximize_client(struct client *client)
+{
+	assert(client->surface->xdg_surface);
+
+	fprintf(stderr, "test-client: maximizing\n");
+	client->surface->maximized = 0;
+
+	xdg_surface_set_maximized(client->surface->xdg_surface);
+
+	do {
+		client_roundtrip(client);
+	} while (!client->surface->maximized);
+}
+
+void
+unmaximize_client(struct client *client)
+{
+	assert (client->surface->xdg_surface);
+
+	fprintf(stderr, "test-client: unmaximizing\n");
+	client->surface->maximized = 1;
+
+	xdg_surface_unset_maximized(client->surface->xdg_surface);
+
+	do {
+		client_roundtrip(client);
+	} while (client->surface->maximized);
+}
+
+void
+fullscreen_client(struct client *client)
+{
+	assert(client->surface->xdg_surface);
+
+	fprintf(stderr, "test-client: fullscreening\n");
+	client->surface->fullscreen = 0;
+
+	xdg_surface_set_fullscreen(client->surface->xdg_surface,
+				   client->output->wl_output);
+
+	do {
+		client_roundtrip (client);
+	} while (!client->surface->fullscreen);
+}
+
+void
+unfullscreen_client(struct client *client)
+{
+	assert (client->surface->xdg_surface);
+
+	fprintf(stderr, "test-client: unfullscreening\n");
+	client->surface->fullscreen = 1;
+
+	xdg_surface_unset_fullscreen (client->surface->xdg_surface);
+
+	do {
+		client_roundtrip (client);
+	} while (client->surface->fullscreen);
+}
+
+void
 move_pointer(struct client *client, int x, int y)
 {
 	wl_test_move_pointer (client->test->wl_test, x, y);
