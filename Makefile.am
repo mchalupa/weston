@@ -899,6 +899,16 @@ nodist_weston_test_la_SOURCES =			\
 	protocol/wayland-test-protocol.c	\
 	protocol/wayland-test-server-protocol.h
 
+
+if ENABLE_WESTON_DEBUG
+noinst_LTLIBRARIES += weston-debugfs.la
+
+weston_debugfs_la_LIBADD = $(COMPOSITOR_LIBS) libshared.la
+weston_debugfs_la_LDFLAGS = $(test_module_ldflags) $(FUSE_LIBS)
+weston_debugfs_la_CFLAGS = $(GCC_CFLAGS) $(COMPOSITOR_CFLAGS) $(FUSE_CFLAGS)
+weston_debugfs_la_SOURCES = debug/debugfs.c
+endif
+
 if ENABLE_EGL
 weston_test_la_CFLAGS += $(EGL_TESTS_CFLAGS)
 weston_test_la_LDFLAGS += $(EGL_TESTS_LIBS)

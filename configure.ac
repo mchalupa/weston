@@ -59,6 +59,39 @@ AC_CHECK_HEADERS([execinfo.h])
 
 AC_CHECK_FUNCS([mkostemp strchrnul initgroups posix_fallocate])
 
+# debug allows to compile helper debugging features in weston
+# (used by weston-tests and weston-debugfs module)
+# and weston-debug allows to compile weston-debug module
+AC_ARG_ENABLE(debug,
+		AS_HELP_STRING(
+		[--enable-debug], [Enable debugging features inside of Weston]),,
+	      enable_debug=no)
+AM_CONDITIONAL(ENABLE_DEBUG, test x$enable_debug = xyes)
+
+AC_ARG_ENABLE(weston-debugfs,
+		AS_HELP_STRING(
+		[--enable-weston-debugfs], [Enable weston-debugfs module]),,
+	      enable_weston_debugfs=no)
+
+PKG_CHECK_MODULES(FUSE, fuse,
+                  [have_fuse=yes], [have_fuse=no])
+
+if test x$enable_debug = xyes; then
+	AC_DEFINE([DEBUG], [1], [Enable debugging features])
+	if test x$enable_weston_debugfs = xyes; then
+		if test x$have_fuse = xyes; then
+			AM_CONDITIONAL(ENABLE_WESTON_DEBUG, true)
+		else
+			AC_MSG_ERROR("Need fuse for weston-debug")
+		fi
+	fi
+else
+	if test x$enable_weston_debugfs = xyes; then
+		AC_MSG_ERROR("weston-debug must be compiled with --enable-debug")
+		enable_weston_debugfs=no
+	fi
+fi
+
 COMPOSITOR_MODULES="wayland-server >= 1.5.91 pixman-1 >= 0.25.2"
 
 AC_ARG_ENABLE(egl, [  --disable-egl],,
@@ -515,6 +548,7 @@ AC_OUTPUT
 AC_MSG_RESULT([
 	Native Backend			${WESTON_NATIVE_BACKEND}
 	setuid Install			${enable_setuid_install}
+	debugging			${enable_debug}
 
 	Cairo Renderer			${with_cairo}
 	EGL				${enable_egl}
@@ -528,6 +562,7 @@ AC_MSG_RESULT([
 
 	weston-launch utility		${enable_weston_launch}
 	systemd-login support		${have_systemd_login}
+	weston-debugfs			${enable_weston_debugfs}
 
 	DRM Compositor			${enable_drm_compositor}
 	X11 Compositor			${enable_x11_compositor}
