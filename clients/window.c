@@ -5730,46 +5730,64 @@ display_unwatch_fd(struct display *display, int fd)
 	epoll_ctl(display->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 }
 
-void
-display_run(struct display *display)
+int
+display_dispatch(struct display *display, int timeout)
 {
 	struct task *task;
 	struct epoll_event ep[16];
 	int i, count, ret;
 
-	display->running = 1;
-	while (1) {
-		while (!wl_list_empty(&display->deferred_list)) {
-			task = container_of(display->deferred_list.prev,
-					    struct task, link);
-			wl_list_remove(&task->link);
-			task->run(task, 0);
-		}
 
-		wl_display_dispatch_pending(display->display);
-
-		if (!display->running)
-			break;
-
-		ret = wl_display_flush(display->display);
-		if (ret < 0 && errno == EAGAIN) {
-			ep[0].events =
-				EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP;
-			ep[0].data.ptr = &display->display_task;
-
-			epoll_ctl(display->epoll_fd, EPOLL_CTL_MOD,
-				  display->display_fd, &ep[0]);
-		} else if (ret < 0) {
-			break;
-		}
-
-		count = epoll_wait(display->epoll_fd,
-				   ep, ARRAY_LENGTH(ep), -1);
-		for (i = 0; i < count; i++) {
-			task = ep[i].data.ptr;
-			task->run(task, ep[i].events);
-		}
+	while (!wl_list_empty(&display->deferred_list)) {
+		task = container_of(display->deferred_list.prev,
+				    struct task, link);
+		wl_list_remove(&task->link);
+		task->run(task, 0);
 	}
+
+	ret = wl_display_dispatch_pending(display->display);
+	if (ret < 0)
+		return ret;
+
+	ret = wl_display_flush(display->display);
+	if (ret < 0 && errno == EAGAIN) {
+		ep[0].events =
+			EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP;
+		ep[0].data.ptr = &display->display_task;
+
+		epoll_ctl(display->epoll_fd, EPOLL_CTL_MOD,
+			  display->display_fd, &ep[0]);
+	} else if (ret < 0) {
+		return ret;
+	}
+
+	count = epoll_wait(display->epoll_fd,
+			   ep, ARRAY_LENGTH(ep), timeout);
+	if (count < 0)
+		return count;
+
+	for (i = 0; i < count; i++) {
+		task = ep[i].data.ptr;
+		task->run(task, ep[i].events);
+	}
+
+	return 1;
+}
+
+void
+display_run(struct display *display)
+{
+	int ret;
+
+	display->running = 1;
+	while(display->running) {
+		ret = display_dispatch(display, -1);
+		if (ret <= 0)
+			break;
+	}
+
+	if (ret < 0)
+		perror("Dispatching events");
 }
 
 void
