@@ -911,51 +911,55 @@ libtest_client_la_SOURCES =			\
 nodist_libtest_client_la_SOURCES =		\
 	protocol/wayland-test-protocol.c	\
 	protocol/wayland-test-client-protocol.h
-libtest_client_la_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
-libtest_client_la_LIBADD = $(TEST_CLIENT_LIBS) libshared.la libtest-runner.la
+libtest_client_la_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
+libtest_client_la_LIBADD =			\
+	$(TEST_CLIENT_LIBS)			\
+	libshared.la				\
+	libtest-runner.la			\
+	libtoytoolkit.la
 
 bad_buffer_weston_SOURCES = tests/bad-buffer-test.c
-bad_buffer_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+bad_buffer_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 bad_buffer_weston_LDADD = libtest-client.la
 
 keyboard_weston_SOURCES = tests/keyboard-test.c
-keyboard_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+keyboard_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 keyboard_weston_LDADD = libtest-client.la
 
 event_weston_SOURCES = tests/event-test.c
-event_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+event_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 event_weston_LDADD = libtest-client.la
 
 button_weston_SOURCES = tests/button-test.c
-button_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+button_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 button_weston_LDADD = libtest-client.la
 
 text_weston_SOURCES = tests/text-test.c
 nodist_text_weston_SOURCES =			\
 	protocol/text-protocol.c		\
 	protocol/text-client-protocol.h
-text_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+text_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 text_weston_LDADD = libtest-client.la
 
 subsurface_weston_SOURCES = tests/subsurface-test.c
-subsurface_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+subsurface_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 subsurface_weston_LDADD = libtest-client.la
 
 presentation_weston_SOURCES = tests/presentation-test.c
 nodist_presentation_weston_SOURCES =		\
 	protocol/presentation_timing-protocol.c	\
 	protocol/presentation_timing-client-protocol.h
-presentation_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+presentation_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 presentation_weston_LDADD = libtest-client.la
 
 roles_weston_SOURCES = tests/roles-test.c
-roles_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
+roles_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
 roles_weston_LDADD = libtest-client.la
 
 if ENABLE_EGL
 weston_tests += buffer-count.weston
 buffer_count_weston_SOURCES = tests/buffer-count-test.c
-buffer_count_weston_CFLAGS = $(GCC_CFLAGS) $(EGL_TESTS_CFLAGS)
+buffer_count_weston_CFLAGS = $(GCC_CFLAGS) $(EGL_TESTS_CFLAGS) $(CLIENT_CFLAGS)
 buffer_count_weston_LDADD = libtest-client.la $(EGL_TESTS_LIBS)
 endif
 

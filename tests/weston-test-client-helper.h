@@ -26,8 +26,9 @@
 #include "config.h"
 
 #include <assert.h>
-#include "weston-test-runner.h"
 #include "wayland-test-client-protocol.h"
+
+#include "weston-test-runner.h"
 
 struct client {
 	struct wl_display *wl_display;
@@ -100,17 +101,6 @@ struct surface {
 	int height;
 	void *data;
 };
-
-static inline void *
-xzalloc(size_t size)
-{
-        void *p;
-
-        p = calloc(1, size);
-        assert(p);
-
-        return p;
-}
 
 struct client *
 client_create(int x, int y, int width, int height);
