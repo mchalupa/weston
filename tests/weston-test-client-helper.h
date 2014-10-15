@@ -27,6 +27,7 @@
 
 #include <assert.h>
 #include "wayland-test-client-protocol.h"
+#include "../clients/window.h"
 
 #include "weston-test-runner.h"
 
@@ -41,6 +42,14 @@ struct client {
 	struct surface *surface;
 	int has_argb;
 	struct wl_list global_list;
+
+	struct toytoolkit *toytoolkit;
+};
+
+struct toytoolkit {
+	struct display *display;
+	struct window *window;
+	struct widget *widget;
 };
 
 struct global {
