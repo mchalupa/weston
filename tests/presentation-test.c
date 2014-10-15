@@ -32,17 +32,6 @@
 
 #define ARRAY_LENGTH(a) (sizeof (a) / sizeof (a)[0])
 
-static inline void *
-xzalloc(size_t size)
-{
-	void *p;
-
-	p = calloc(1, size);
-	assert(p);
-
-	return p;
-}
-
 static struct presentation *
 get_presentation(struct client *client)
 {

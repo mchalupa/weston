@@ -30,18 +30,8 @@
 #include <sys/mman.h>
 
 #include "../shared/os-compatibility.h"
+#include "../clients/window.h"
 #include "weston-test-client-helper.h"
-
-static inline void *
-xzalloc(size_t size)
-{
-	void *p;
-
-	p = calloc(1, size);
-	assert(p);
-
-	return p;
-}
 
 int
 surface_contains(struct surface *surface, int x, int y)
@@ -339,7 +329,7 @@ shm_format(void *data, struct wl_shm *wl_shm, uint32_t format)
 		client->has_argb = 1;
 }
 
-struct wl_shm_listener shm_listener = {
+struct wl_shm_listener wl_shm_listener = {
 	shm_format
 };
 
@@ -477,7 +467,7 @@ handle_global(void *data, struct wl_registry *registry,
 		client->wl_shm =
 			wl_registry_bind(registry, id,
 					 &wl_shm_interface, 1);
-		wl_shm_add_listener(client->wl_shm, &shm_listener, client);
+		wl_shm_add_listener(client->wl_shm, &wl_shm_listener, client);
 	} else if (strcmp(interface, "wl_output") == 0) {
 		output = xzalloc(sizeof *output);
 		output->wl_output =
