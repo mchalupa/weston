@@ -5172,6 +5172,24 @@ input_destroy(struct input *input)
 	free(input);
 }
 
+struct wl_pointer *
+input_get_wl_pointer(struct input *input)
+{
+	return input->pointer;
+}
+
+struct wl_keyboard *
+input_get_wl_keyboard(struct input *input)
+{
+	return input->keyboard;
+}
+
+struct wl_touch *
+input_get_wl_touch(struct input *input)
+{
+	return input->touch;
+}
+
 static void
 init_workspace_manager(struct display *d, uint32_t id)
 {
@@ -5615,6 +5633,12 @@ struct output *
 display_get_output(struct display *display)
 {
 	return container_of(display->output_list.next, struct output, link);
+}
+
+struct input *
+display_get_input(struct display *display)
+{
+	return container_of(display->input_list.next, struct input, link);
 }
 
 struct wl_compositor *
