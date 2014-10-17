@@ -123,7 +123,7 @@ pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 {
 	struct pointer *pointer = data;
 
-	pointer->focus = wl_surface_get_user_data(wl_surface);
+	pointer->focus = wl_surface;
 	pointer->x = wl_fixed_to_int(x);
 	pointer->y = wl_fixed_to_int(y);
 
@@ -140,7 +140,7 @@ pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	pointer->focus = NULL;
 
 	fprintf(stderr, "test-client: got pointer leave, surface %p\n",
-		wl_surface_get_user_data(wl_surface));
+		wl_surface);
 }
 
 static void
@@ -202,7 +202,7 @@ keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 {
 	struct keyboard *keyboard = data;
 
-	keyboard->focus = wl_surface_get_user_data(wl_surface);
+	keyboard->focus = wl_surface;
 
 	fprintf(stderr, "test-client: got keyboard enter, surface %p\n",
 		keyboard->focus);
@@ -217,7 +217,7 @@ keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 	keyboard->focus = NULL;
 
 	fprintf(stderr, "test-client: got keyboard leave, surface %p\n",
-		wl_surface_get_user_data(wl_surface));
+		wl_surface);
 }
 
 static void
@@ -264,7 +264,7 @@ surface_enter(void *data,
 {
 	struct surface *surface = data;
 
-	surface->output = wl_output_get_user_data(output);
+	surface->output = output;
 
 	fprintf(stderr, "test-client: got surface enter output %p\n",
 		surface->output);
@@ -279,7 +279,7 @@ surface_leave(void *data,
 	surface->output = NULL;
 
 	fprintf(stderr, "test-client: got surface leave output %p\n",
-		wl_output_get_user_data(output));
+		output);
 }
 
 static const struct wl_surface_listener surface_listener = {
