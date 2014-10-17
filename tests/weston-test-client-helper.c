@@ -117,12 +117,9 @@ get_n_egl_buffers(struct client *client)
 }
 
 static void
-pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
-		     uint32_t serial, struct wl_surface *wl_surface,
+store_pointer_enter(struct pointer *pointer, struct wl_surface *wl_surface,
 		     wl_fixed_t x, wl_fixed_t y)
 {
-	struct pointer *pointer = data;
-
 	pointer->focus = wl_surface;
 	pointer->x = wl_fixed_to_int(x);
 	pointer->y = wl_fixed_to_int(y);
@@ -132,10 +129,20 @@ pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void
-pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
-		     uint32_t serial, struct wl_surface *wl_surface)
+pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
+		     uint32_t serial, struct wl_surface *wl_surface,
+		     wl_fixed_t x, wl_fixed_t y)
 {
 	struct pointer *pointer = data;
+
+	store_pointer_enter(pointer, wl_surface, x, y);
+}
+
+static void
+store_pointer_leave(struct pointer *pointer, struct wl_surface *wl_surface)
+{
+	assert(pointer->focus == wl_surface &&
+		"Got leave for another wl_surface");
 
 	pointer->focus = NULL;
 
@@ -144,16 +151,41 @@ pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void
-pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
-		      uint32_t time, wl_fixed_t x, wl_fixed_t y)
+pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
+		     uint32_t serial, struct wl_surface *wl_surface)
 {
 	struct pointer *pointer = data;
 
+	store_pointer_leave(pointer, wl_surface);
+}
+
+static void
+store_pointer_motion(struct pointer *pointer, wl_fixed_t x, wl_fixed_t y)
+{
 	pointer->x = wl_fixed_to_int(x);
 	pointer->y = wl_fixed_to_int(y);
 
 	fprintf(stderr, "test-client: got pointer motion %d %d\n",
 		pointer->x, pointer->y);
+}
+
+static void
+pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
+		      uint32_t time, wl_fixed_t x, wl_fixed_t y)
+{
+	struct pointer *pointer = data;
+
+	store_pointer_motion(pointer, x, y);
+}
+
+static void
+store_pointer_button(struct pointer *pointer, uint32_t button, uint32_t state)
+{
+	pointer->button = button;
+	pointer->state = state;
+
+	fprintf(stderr, "test-client: got pointer button %u %u\n",
+		button, state);
 }
 
 static void
@@ -163,19 +195,21 @@ pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 {
 	struct pointer *pointer = data;
 
-	pointer->button = button;
-	pointer->state = state;
+	store_pointer_button(pointer, button, state);
+}
 
-	fprintf(stderr, "test-client: got pointer button %u %u\n",
-		button, state);
+static void
+store_pointer_axis(struct pointer *pointer, uint32_t axis, wl_fixed_t value)
+{
+	fprintf(stderr, "test-client: got pointer axis %u %f\n",
+		axis, wl_fixed_to_double(value));
 }
 
 static void
 pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
 		    uint32_t time, uint32_t axis, wl_fixed_t value)
 {
-	fprintf(stderr, "test-client: got pointer axis %u %f\n",
-		axis, wl_fixed_to_double(value));
+	store_pointer_axis((struct pointer *) data, axis, value);
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -196,12 +230,9 @@ keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 }
 
 static void
-keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
-		      uint32_t serial, struct wl_surface *wl_surface,
-		      struct wl_array *keys)
+store_keyboard_enter(struct keyboard *keyboard, struct wl_surface *wl_surface)
 {
-	struct keyboard *keyboard = data;
-
+	assert(keyboard->focus == NULL);
 	keyboard->focus = wl_surface;
 
 	fprintf(stderr, "test-client: got keyboard enter, surface %p\n",
@@ -209,15 +240,40 @@ keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
 }
 
 static void
+keyboard_handle_enter(void *data, struct wl_keyboard *wl_keyboard,
+		      uint32_t serial, struct wl_surface *wl_surface,
+		      struct wl_array *keys)
+{
+	struct keyboard *keyboard = data;
+
+	store_keyboard_enter(keyboard, wl_surface);
+}
+
+static void
+store_keyboard_leave(struct keyboard *keyboard, struct wl_surface *wl_surface)
+{
+	assert(keyboard->focus == wl_surface);
+	keyboard->focus = NULL;
+
+	fprintf(stderr, "test-client: got keyboard leave, surface %p\n",
+		wl_surface);
+}
+static void
 keyboard_handle_leave(void *data, struct wl_keyboard *wl_keyboard,
 		      uint32_t serial, struct wl_surface *wl_surface)
 {
 	struct keyboard *keyboard = data;
 
-	keyboard->focus = NULL;
+	store_keyboard_leave(keyboard, wl_surface);
+}
 
-	fprintf(stderr, "test-client: got keyboard leave, surface %p\n",
-		wl_surface);
+static void
+store_keyboard_key(struct keyboard *keyboard, uint32_t key, uint32_t state)
+{
+	keyboard->key = key;
+	keyboard->state = state;
+
+	fprintf(stderr, "test-client: got keyboard key %u %u\n", key, state);
 }
 
 static void
@@ -227,10 +283,21 @@ keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 {
 	struct keyboard *keyboard = data;
 
-	keyboard->key = key;
-	keyboard->state = state;
+	store_keyboard_key(keyboard, key, state);
+}
 
-	fprintf(stderr, "test-client: got keyboard key %u %u\n", key, state);
+static void
+store_keyboard_modifiers(struct keyboard *keyboard, uint32_t mods_depressed,
+			  uint32_t mods_latched, uint32_t mods_locked,
+			  uint32_t group)
+{
+	keyboard->mods_depressed = mods_depressed;
+	keyboard->mods_latched = mods_latched;
+	keyboard->mods_locked = mods_locked;
+	keyboard->group = group;
+
+	fprintf(stderr, "test-client: got keyboard modifiers %x %x %x %x\n",
+		mods_depressed, mods_latched, mods_locked, group);
 }
 
 static void
@@ -241,13 +308,8 @@ keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
 {
 	struct keyboard *keyboard = data;
 
-	keyboard->mods_depressed = mods_depressed;
-	keyboard->mods_latched = mods_latched;
-	keyboard->mods_locked = mods_locked;
-	keyboard->group = group;
-
-	fprintf(stderr, "test-client: got keyboard modifiers %u %u %u %u\n",
-		mods_depressed, mods_latched, mods_locked, group);
+	store_keyboard_modifiers(keyboard, mods_depressed, mods_latched,
+				 mods_locked, group);
 }
 
 static const struct wl_keyboard_listener keyboard_listener = {
@@ -259,15 +321,32 @@ static const struct wl_keyboard_listener keyboard_listener = {
 };
 
 static void
+store_surface_enter(struct surface *surface, struct wl_output *output)
+{
+	assert(surface->output == NULL);
+	surface->output = output;
+
+	fprintf(stderr, "test-client: got surface enter output %p\n",
+		surface->output);
+}
+
+static void
 surface_enter(void *data,
 	      struct wl_surface *wl_surface, struct wl_output *output)
 {
 	struct surface *surface = data;
 
-	surface->output = output;
+	store_surface_enter(surface, output);
+}
 
-	fprintf(stderr, "test-client: got surface enter output %p\n",
-		surface->output);
+static void
+store_surface_leave(struct surface *surface, struct wl_output *output)
+{
+	assert(surface->output == output);
+	surface->output = NULL;
+
+	fprintf(stderr, "test-client: got surface leave output %p\n",
+		output);
 }
 
 static void
@@ -276,10 +355,7 @@ surface_leave(void *data,
 {
 	struct surface *surface = data;
 
-	surface->output = NULL;
-
-	fprintf(stderr, "test-client: got surface leave output %p\n",
-		output);
+	store_surface_leave(surface, output);
 }
 
 static const struct wl_surface_listener surface_listener = {
@@ -398,6 +474,15 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 static void
+store_output_geometry(struct output *output, int x, int y)
+{
+	assert(output->wl_output);
+
+	output->x = x;
+	output->y = y;
+}
+
+static void
 output_handle_geometry(void *data,
 		       struct wl_output *wl_output,
 		       int x, int y,
@@ -410,8 +495,16 @@ output_handle_geometry(void *data,
 {
 	struct output *output = data;
 
-	output->x = x;
-	output->y = y;
+	store_output_geometry(output, x, y);
+}
+
+static void
+store_output_mode(struct output *output, uint32_t flags, int width, int height)
+{
+	if (flags & WL_OUTPUT_MODE_CURRENT) {
+		output->width = width;
+		output->height = height;
+	}
 }
 
 static void
@@ -424,10 +517,7 @@ output_handle_mode(void *data,
 {
 	struct output *output = data;
 
-	if (flags & WL_OUTPUT_MODE_CURRENT) {
-		output->width = width;
-		output->height = height;
-	}
+	store_output_mode(output, flags, width, height);
 }
 
 static const struct wl_output_listener output_listener = {
