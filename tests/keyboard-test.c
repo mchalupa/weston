@@ -25,7 +25,7 @@
 TEST(simple_keyboard_test)
 {
 	struct client *client;
-	struct surface *expect_focus = NULL;
+	struct wl_surface *expect_focus = NULL;
 	struct keyboard *keyboard;
 	uint32_t expect_key = 0;
 	uint32_t expect_state = 0;
@@ -50,10 +50,10 @@ TEST(simple_keyboard_test)
 						 NULL);
 		} else if (expect_key < 10) {
 			expect_key++;
-			expect_focus = client->surface;
+			expect_focus = client->surface->wl_surface;
 			expect_state = WL_KEYBOARD_KEY_STATE_PRESSED;
 			wl_test_activate_surface(client->test->wl_test,
-						 expect_focus->wl_surface);
+						 expect_focus);
 			wl_test_send_key(client->test->wl_test, expect_key,
 					 expect_state);
 		} else {
