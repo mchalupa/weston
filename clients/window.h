@@ -349,6 +349,8 @@ void
 window_schedule_redraw(struct window *window);
 void
 window_schedule_resize(struct window *window, int width, int height);
+void
+window_get_decoration_size(struct window *window, int *height, int *width);
 
 void
 window_damage(struct window *window, int32_t x, int32_t y,
