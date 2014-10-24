@@ -2501,26 +2501,33 @@ window_frame_create(struct window *window, void *data)
 }
 
 void
-window_frame_set_child_size(struct widget *widget, int child_width,
-			    int child_height)
+window_get_decoration_size(struct window *window, int *width, int *height)
 {
-	struct display *display = widget->window->display;
+	struct display *display = window->display;
 	struct theme *t = display->theme;
+	int margin;
+
+	if (window->maximized || window->fullscreen)
+		margin = 0;
+	else
+		margin = t->margin;
+
+	if (width)
+		*width = (t->width + margin) * 2;
+	if (height)
+		*height = t->width + t->titlebar_height + margin * 2;
+}
+
+void
+window_frame_set_child_size(struct widget *widget, int width, int height)
+{
 	int decoration_width, decoration_height;
-	int width, height;
-	int margin = widget->window->maximized ? 0 : t->margin;
 
-	if (!widget->window->fullscreen) {
-		decoration_width = (t->width + margin) * 2;
-		decoration_height = t->width +
-			t->titlebar_height + margin * 2;
+	window_get_decoration_size(widget->window, &decoration_width,
+				   &decoration_height);
 
-		width = child_width + decoration_width;
-		height = child_height + decoration_height;
-	} else {
-		width = child_width;
-		height = child_height;
-	}
+	width += decoration_width;
+	height += decoration_height;
 
 	window_schedule_resize(widget->window, width, height);
 }
