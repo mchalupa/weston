@@ -44,6 +44,7 @@
 
 #include "../shared/config-parser.h"
 #include "window.h"
+#include "testing.h"
 
 static int option_fullscreen;
 static char *option_font;
@@ -3092,4 +3093,30 @@ int main(int argc, char *argv[])
 	display_run(d);
 
 	return 0;
+}
+
+TESTING_GETTER(terminal, struct terminal, widget);
+TESTING_GETTER(terminal, struct terminal, window);
+
+struct terminal *
+testing_terminal_create(struct display *d)
+{
+	struct terminal *terminal;
+
+	wl_list_init(&terminal_list);
+
+	terminal = terminal_create(d);
+	if (!terminal)
+		return terminal;
+
+	if (terminal_run(terminal, "/bin/sh"))
+		return terminal;
+
+	return terminal;
+}
+
+void
+testing_terminal_destroy(struct terminal *terminal)
+{
+	terminal_destroy(terminal);
 }
