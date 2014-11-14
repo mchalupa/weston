@@ -37,10 +37,12 @@ struct client {
 	struct wl_shm *wl_shm;
 	struct test *test;
 	struct input *input;
+	/* the output the client is currently on */
 	struct output *output;
 	struct surface *surface;
 	int has_argb;
 	struct wl_list global_list;
+	struct wl_list output_list;
 
 	struct toytoolkit *toytoolkit;
 };
@@ -103,12 +105,15 @@ struct output {
 	int y;
 	int width;
 	int height;
+	struct wl_list link;
+	int initialized;
 };
 
 struct surface {
 	struct wl_surface *wl_surface;
 	struct wl_buffer *wl_buffer;
 	struct wl_output *output;
+	struct client *client;
 	int x;
 	int y;
 	int width;

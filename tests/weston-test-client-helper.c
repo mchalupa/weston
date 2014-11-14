@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "../shared/os-compatibility.h"
 #include "../clients/window.h"
@@ -336,14 +337,35 @@ static const struct wl_keyboard_listener keyboard_listener = {
 	keyboard_handle_modifiers,
 };
 
-static void
-store_surface_enter(struct surface *surface, struct wl_output *output)
+static struct output *
+get_output(struct client *client, struct wl_output *wl_output)
 {
-	assert(surface->output == NULL);
-	surface->output = output;
+	struct output *o;
 
-	fprintf(stderr, "test-client: got surface enter output %p\n",
-		surface->output);
+	wl_list_for_each(o, &client->output_list, link)
+		if (o->wl_output == wl_output)
+			return o;
+
+	o = xzalloc(sizeof *o);
+	o->wl_output = wl_output;
+	wl_list_insert(&client->output_list, &o->link);
+
+	return o;
+}
+
+static void
+store_surface_enter(struct surface *surface, struct wl_output *wl_output)
+{
+	struct client *client = surface->client;
+	struct output *output = get_output(client, wl_output);
+
+	assert(output->initialized && "Entered unknown output");
+
+	surface->output = wl_output;
+	client->output = output;
+
+	fprintf(stderr, "test-client: got surface enter output %p [%d %d %dx%d]\n",
+		wl_output, output->x, output->y, output->width, output->height);
 }
 
 static void
@@ -356,10 +378,15 @@ surface_enter(void *data,
 }
 
 static void
-store_surface_leave(struct surface *surface, struct wl_output *output)
+store_surface_leave(struct surface *surface, struct wl_output *wl_output)
 {
-	assert(surface->output == output);
+	struct client *client = surface->client;
+	struct output *output = get_output(client, wl_output);
+
+	assert(output->initialized && "Leaving unknown output");
+
 	surface->output = NULL;
+	client->output = NULL;
 
 	fprintf(stderr, "test-client: got surface leave output %p\n",
 		output);
@@ -514,6 +541,8 @@ store_output_geometry(struct output *output, int x, int y)
 
 	output->x = x;
 	output->y = y;
+
+	output->initialized = 1;
 }
 
 static void
@@ -527,7 +556,8 @@ output_handle_geometry(void *data,
 		       const char *model,
 		       int32_t transform)
 {
-	struct output *output = data;
+	struct client *client = data;
+	struct output *output = get_output(client, wl_output);
 
 	store_output_geometry(output, x, y);
 }
@@ -539,6 +569,8 @@ store_output_mode(struct output *output, uint32_t flags, int width, int height)
 		output->width = width;
 		output->height = height;
 	}
+
+	output->initialized = 1;
 }
 
 static void
@@ -549,7 +581,8 @@ output_handle_mode(void *data,
 		   int height,
 		   int refresh)
 {
-	struct output *output = data;
+	struct client *client = data;
+	struct output *output = get_output(client, wl_output);
 
 	store_output_mode(output, flags, width, height);
 }
@@ -587,7 +620,7 @@ handle_global(void *data, struct wl_registry *registry,
 {
 	struct client *client = data;
 	struct input *input;
-	struct output *output;
+	struct wl_output *wl_output;
 	struct global *global;
 
 	global = xzalloc(sizeof *global);
@@ -614,13 +647,15 @@ handle_global(void *data, struct wl_registry *registry,
 					 &wl_shm_interface, 1);
 		wl_shm_add_listener(client->wl_shm, &wl_shm_listener, client);
 	} else if (strcmp(interface, "wl_output") == 0) {
-		output = xzalloc(sizeof *output);
-		output->wl_output =
+		wl_output =
 			wl_registry_bind(registry, id,
 					 &wl_output_interface, 1);
-		wl_output_add_listener(output->wl_output,
-				       &output_listener, output);
-		client->output = output;
+		assert(wl_output && "Failed binding to wl_output");
+
+		get_output(client, wl_output);
+		wl_output_add_listener(wl_output,
+				       &output_listener, client);
+
 	} else if (strcmp(interface, "wl_test") == 0) {
 		bind_test(client, registry, id);
 	}
@@ -710,7 +745,7 @@ client_check(struct client *client)
 	assert(client->test);
 
 	/* must have an output */
-	assert(client->output);
+	assert(client->toytoolkit || !wl_list_empty(&client->output_list));
 }
 
 struct client *
@@ -726,6 +761,7 @@ client_create(int x, int y, int width, int height)
 	client->wl_display = wl_display_connect(NULL);
 	assert(client->wl_display);
 	wl_list_init(&client->global_list);
+	wl_list_init(&client->output_list);
 
 	/* setup registry so we can bind to interfaces */
 	client->wl_registry = wl_display_get_registry(client->wl_display);
@@ -742,6 +778,7 @@ client_create(int x, int y, int width, int height)
 	surface->wl_surface =
 		wl_compositor_create_surface(client->wl_compositor);
 	assert(surface->wl_surface);
+	surface->client = client;
 
 	wl_surface_add_listener(surface->wl_surface, &surface_listener,
 				surface);
@@ -805,23 +842,23 @@ toytoolkit_surface_output_handler(struct window *window, struct output *output,
 				  int enter, void *data)
 {
 	struct client *client = data;
-	struct rectangle rect;
+	struct rectangle alloc;
+	struct wl_output *wl_output = output_get_wl_output(output);
+	struct output *client_output = get_output(client, wl_output);
 
-	/* if the output was not allocated when we were handling globals,
-	 * do it now */
-	if (client->output->width == 0 && client->output->height == 0
-	    && client->output->wl_output == output_get_wl_output(output)) {
-		output_get_allocation(output, &rect);
-		client->output->width = rect.width;
-		client->output->height = rect.height;
+	/* toytoolkit client do not know about an output until
+	 * it enters it */
+	if (!client_output->initialized) {
+		output_get_allocation(output, &alloc);
+		store_output_geometry(client_output, alloc.x, alloc.y);
+		store_output_mode(client_output, WL_OUTPUT_MODE_CURRENT,
+				  alloc.width, alloc.height);
 	}
 
 	if (enter)
-		store_surface_enter(client->surface,
-				    output_get_wl_output(output));
+		store_surface_enter(client->surface, wl_output);
 	else
-		store_surface_leave(client->surface,
-				    output_get_wl_output(output));
+		store_surface_leave(client->surface, wl_output);
 }
 
 static int
@@ -885,22 +922,12 @@ toytoolkit_global_handler(struct display *display, uint32_t name,
 			  const char *interface, uint32_t version, void *data)
 {
 	struct client *client = data;
-	struct output *output;
 	struct input *input;
-	struct rectangle rect;
 
 	if (strcmp(interface, "wl_test") == 0) {
 		bind_test(client, NULL, name);
 	} else if (strcmp(interface, "wl_compositor") == 0) {
 		client->wl_compositor = display_get_compositor(display);
-	} else if (strcmp(interface, "wl_output") == 0) {
-		output = xzalloc(sizeof(struct output));
-		client->output = output;
-		output->wl_output
-			= output_get_wl_output(display_get_output(display));
-		output_get_allocation(display_get_output(display), &rect);
-		output->width = rect.width;
-		output->height = rect.height;
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		input = display_get_input(display);
 
@@ -983,6 +1010,7 @@ toytoolkit_client_create(int x, int y, int width, int height)
 
 	client = xzalloc(sizeof *client);
 	wl_list_init(&client->global_list);
+	wl_list_init(&client->output_list);
 
 	tk = xzalloc(sizeof *tk);
 	client->toytoolkit = tk;
@@ -1024,6 +1052,7 @@ toytoolkit_client_create(int x, int y, int width, int height)
 	client->surface->wl_surface = window_get_wl_surface(tk->window);
 	client->surface->width = width;
 	client->surface->height = height;
+	client->surface->client = client;
 
 	sync_surface(client);
 

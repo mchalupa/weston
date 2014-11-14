@@ -286,6 +286,8 @@ output_contains_client(struct client *client)
 	struct output *output = client->output;
 	struct surface *surface = client->surface;
 
+	assert(client->output && "Client is not displayed");
+
 	return !(output->x >= surface->x + surface->width
 		|| output->x + output->width <= surface->x
 		|| output->y >= surface->y + surface->height
