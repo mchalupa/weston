@@ -26,46 +26,6 @@
 
 #include "weston-test-client-helper.h"
 
-static void
-simulate_move(struct client *client, int x1, int y1, int x2, int y2)
-{
-	struct wl_test *wl_test = client->test->wl_test;
-
-	wl_test_move_pointer(wl_test, x1, y1);
-	client_roundtrip(client);
-
-	while (x1 != x2 || y1 != y2) {
-		if (x2 < x1)
-			--x1;
-		else if (x2 > x1)
-			++x1;
-
-		if (y2 < y1)
-			--y1;
-		else if (y2 > y1)
-			++y1;
-
-		wl_test_move_pointer(wl_test, x1, y1);
-		client_roundtrip(client);
-	}
-}
-
-static void
-simulate_drag(struct client *client, int x1, int y1, int x2, int y2)
-{
-	struct wl_test *wl_test = client->test->wl_test;
-
-	simulate_move(client, x1 - 50, y1 - 50, x1, y1);
-
-	wl_test_send_button(wl_test, BTN_LEFT, WL_POINTER_BUTTON_STATE_PRESSED);
-	client_roundtrip(client);
-
-	simulate_move(client, x1, y1, x2, y2);
-
-	wl_test_send_button(wl_test, BTN_LEFT, WL_POINTER_BUTTON_STATE_RELEASED);
-	client_roundtrip(client);
-}
-
 /* relative position where to grab the client when dragging*/
 #define GRAB_SHIFT_X 50
 #define GRAB_SHIFT_Y 40
