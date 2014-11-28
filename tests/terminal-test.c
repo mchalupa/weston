@@ -30,41 +30,12 @@
 #define GRAB_SHIFT_X 50
 #define GRAB_SHIFT_Y 40
 
-static void
-drag_and_check(struct client *client, int x, int y)
-{
-	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
-	client_roundtrip(client);
-
-	fprintf(stderr, "dragging from %dx%d to %dx%d\n",
-		client->test->geometry.x, client->test->geometry.y,
-		x, y);
-	fflush(stderr);
-
-	simulate_drag(client,
-		      client->test->geometry.x + GRAB_SHIFT_X,
-		      client->test->geometry.y + GRAB_SHIFT_Y,
-		      x + GRAB_SHIFT_X, y + GRAB_SHIFT_Y);
-
-	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
-	client_roundtrip(client);
-
-	assert(!window_is_maximized(client->toytoolkit->window));
-	assert(!window_is_fullscreen(client->toytoolkit->window));
-	assert(client->test->geometry.x == x);
-	assert(client->test->geometry.y == y);
-}
-
 struct terminal;
 struct terminal *testing_terminal_create(struct display *display);
 
 TEST(terminal_tst)
 {
-	int argc;
-	char *argv[] = {NULL};
-	struct display *d = display_create(&argc, argv);
-	assert(d);
-	struct terminal *terminal = testing_terminal_create(d);
+	struct client *c = create_external_client(testing_terminal_create);
 	display_run(d);
 }
 

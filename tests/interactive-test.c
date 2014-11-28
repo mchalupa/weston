@@ -26,35 +26,6 @@
 
 #include "weston-test-client-helper.h"
 
-/* relative position where to grab the client when dragging*/
-#define GRAB_SHIFT_X 50
-#define GRAB_SHIFT_Y 40
-
-static void
-drag_and_check(struct client *client, int x, int y)
-{
-	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
-	client_roundtrip(client);
-
-	fprintf(stderr, "dragging from %dx%d to %dx%d\n",
-		client->test->geometry.x, client->test->geometry.y,
-		x, y);
-	fflush(stderr);
-
-	pointer_simulate_drag(client,
-			      client->test->geometry.x + GRAB_SHIFT_X,
-			      client->test->geometry.y + GRAB_SHIFT_Y,
-			      x + GRAB_SHIFT_X, y + GRAB_SHIFT_Y);
-
-	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
-	client_roundtrip(client);
-
-	assert(!window_is_maximized(client->toytoolkit->window));
-	assert(!window_is_fullscreen(client->toytoolkit->window));
-	assert(client->test->geometry.x == x);
-	assert(client->test->geometry.y == y);
-}
-
 #define MSEC_TO_USEC(n) ((n) * 1000)
 
 TEST(move_client_by_pointer_test)
@@ -71,11 +42,14 @@ TEST(move_client_by_pointer_test)
 		x = rand() % (client->output->width - width);
 		y = rand() % (client->output->height - height);
 
-		drag_and_check(client, x, y);
+		move_client_by_dragging(client, x, y);
 		/* sleep a while so that we won't do double click */
 		usleep(MSEC_TO_USEC(300));
 	}
 }
+
+#define GRAB_SHIFT_X 50
+#define GRAB_SHIFT_Y 40
 
 TEST(focus_tests_one_client)
 {

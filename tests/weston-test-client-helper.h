@@ -132,6 +132,9 @@ void
 move_client(struct client *client, int x, int y);
 
 void
+move_client_by_dragging(struct client *client, int x, int y);
+
+void
 pointer_simulate_move(struct client *client, int x1, int y1, int x2, int y2);
 
 void

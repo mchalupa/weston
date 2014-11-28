@@ -171,6 +171,33 @@ pointer_simulate_drag(struct client *client, int x1, int y1, int x2, int y2)
 	client_roundtrip(client);
 }
 
+/* relative position where to grab the client when dragging*/
+#define GRAB_SHIFT_X 50
+#define GRAB_SHIFT_Y 40
+
+void
+move_client_by_dragging(struct client *client, int x, int y)
+{
+	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
+	client_roundtrip(client);
+
+	fprintf(stderr, "dragging client from %dx%d to %dx%d\n",
+		client->test->geometry.x, client->test->geometry.y,
+		x, y);
+	fflush(stderr);
+
+	pointer_simulate_drag(client,
+			      client->test->geometry.x + GRAB_SHIFT_X,
+			      client->test->geometry.y + GRAB_SHIFT_Y,
+			      x + GRAB_SHIFT_X, y + GRAB_SHIFT_Y);
+
+	wl_test_get_geometry(client->test->wl_test, client->surface->wl_surface);
+	client_roundtrip(client);
+
+	assert(client->test->geometry.x == x);
+	assert(client->test->geometry.y == y);
+}
+
 #define MSEC_TO_USEC(n) ((n) * 1000)
 
 void
@@ -1074,6 +1101,74 @@ toytoolkit_client_create(int x, int y, int width, int height)
 	display	= display_create(&argc, argv);
 	assert(display);
 	display_set_user_data(display, client);
+
+	tk->display = display;
+	tk->window = window_create(display);
+	tk->widget = window_frame_create(tk->window, client);
+	client->wl_display = display_get_display(display);
+
+	/* make sure all toytoolkit handlers have been dispatched now */
+	wl_display_roundtrip(client->wl_display);
+
+	/* populate client with objects */
+	display_set_global_handler(display, toytoolkit_global_handler);
+	client_check(client);
+
+	window_set_title(tk->window, "toytoolkit test-client");
+	window_set_user_data(tk->window, client);
+	window_set_key_handler(tk->window, toytoolkit_key_handler);
+	window_set_keyboard_focus_handler(tk->window,
+					  toytoolkit_keyboard_focus_handler);
+	window_set_output_handler(tk->window, toytoolkit_surface_output_handler);
+	window_set_state_changed_handler(tk->window,
+					 toytoolkit_state_changed_handler);
+
+	widget_set_enter_handler(tk->widget, toytoolkit_pointer_enter_handler);
+	widget_set_leave_handler(tk->widget, toytoolkit_pointer_leave_handler);
+	widget_set_motion_handler(tk->widget, toytoolkit_pointer_motion_handler);
+	widget_set_button_handler(tk->widget, toytoolkit_pointer_button_handler);
+	widget_set_axis_handler(tk->widget, toytoolkit_pointer_axis_handler);
+	widget_set_redraw_handler(tk->widget, toytoolkit_redraw_handler);
+
+	/* set surface. This surface from toytoolkit will be kept in sync
+	 * with client->surface, so that we can use all the tricks
+	 * as before */
+	client->surface = xzalloc(sizeof *client->surface);
+	client->surface->wl_surface = window_get_wl_surface(tk->window);
+	client->surface->width = width;
+	client->surface->height = height;
+
+	sync_surface(client);
+
+	window_schedule_resize(tk->window, width, height);
+	move_client(client, x, y);
+	client_roundtrip(client);
+
+	return client;
+}
+
+struct client *
+external_client_create(int x, int y, void *(*create)(struct display *))
+{
+	struct display *display;
+	struct client *client;
+	struct toytoolkit *tk;
+	void *cli;
+	char *argv[] = {"external test-client", NULL};
+	int argc = 1;
+
+	client = xzalloc(sizeof *client);
+	wl_list_init(&client->global_list);
+
+	tk = xzalloc(sizeof *tk);
+	client->toytoolkit = tk;
+
+	display	= display_create(&argc, argv);
+	assert(display);
+	display_set_user_data(display, client);
+
+	cli = create(display);
+	assert(cli && "Failed creating external client");
 
 	tk->display = display;
 	tk->window = window_create(display);
