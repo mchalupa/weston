@@ -936,7 +936,8 @@ weston_tests =					\
 	presentation.weston			\
 	roles.weston				\
 	subsurface.weston			\
-	test-suite-tests.weston
+	test-suite-tests.weston			\
+	interactive.weston
 
 
 AM_TESTS_ENVIRONMENT = \
@@ -1056,6 +1057,10 @@ roles_weston_LDADD = libtest-client.la
 test_suite_tests_weston_SOURCES = tests/test-suite-test.c
 test_suite_tests_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
 test_suite_tests_weston_LDADD = libtest-client.la
+
+interactive_weston_SOURCES = tests/interactive-test.c
+interactive_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
+interactive_weston_LDADD = libtest-client.la
 
 if ENABLE_EGL
 weston_tests += buffer-count.weston
