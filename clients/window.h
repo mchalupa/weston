@@ -176,6 +176,9 @@ display_watch_fd(struct display *display,
 void
 display_unwatch_fd(struct display *display, int fd);
 
+int
+display_dispatch(struct display *display, int timeout);
+
 void
 display_run(struct display *d);
 
