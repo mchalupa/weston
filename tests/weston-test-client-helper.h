@@ -41,6 +41,18 @@ struct client {
 	struct surface *surface;
 	int has_argb;
 	struct wl_list global_list;
+
+	struct toytoolkit *toytoolkit;
+};
+
+struct display;
+struct window;
+struct widget;
+
+struct toytoolkit {
+	struct display *display;
+	struct window *window;
+	struct widget *widget;
 };
 
 struct global {
