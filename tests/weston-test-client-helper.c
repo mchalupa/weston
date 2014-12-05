@@ -93,18 +93,17 @@ move_client(struct client *client, int x, int y)
 	client->surface->y = y;
 	wl_test_move_surface(client->test->wl_test, surface->wl_surface,
 			     surface->x, surface->y);
-	/* The attach here is necessary because commit() will call congfigure
-	 * only on surfaces newly attached, and the one that sets the surface
-	 * position is the configure. */
-	wl_surface_attach(surface->wl_surface, surface->wl_buffer, 0, 0);
-	wl_surface_damage(surface->wl_surface, 0, 0, surface->width,
-			  surface->height);
+	if (!client->toytoolkit) {
+		wl_surface_attach(surface->wl_surface, surface->wl_buffer, 0, 0);
+		wl_surface_damage(surface->wl_surface, 0, 0,
+				  surface->width, surface->height);
 
-	frame_callback_set(surface->wl_surface, &done);
-
-	wl_surface_commit(surface->wl_surface);
-
-	frame_callback_wait(client, &done);
+		frame_callback_set(surface->wl_surface, &done);
+		wl_surface_commit(surface->wl_surface);
+		frame_callback_wait(client, &done);
+	} else {
+		client_roundtrip(client);
+	}
 }
 
 int
