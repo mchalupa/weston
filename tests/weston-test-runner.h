@@ -41,7 +41,13 @@ struct weston_test {
 	int must_fail;
 } __attribute__ ((aligned (32)));
 
+#ifndef ARRAY_LENGTH
 #define ARRAY_LENGTH(a) ((int) (sizeof (a) / sizeof (a)[0]))
+#endif
+
+/* this is defined in toytoolkit, we just need the
+ * declaration here */
+void *xzalloc(size_t s);
 
 #define TEST_BEGIN(name, arg)					\
 	static void name(arg)

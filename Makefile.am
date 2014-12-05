@@ -1007,8 +1007,12 @@ libtest_client_la_SOURCES =			\
 nodist_libtest_client_la_SOURCES =		\
 	protocol/wayland-test-protocol.c	\
 	protocol/wayland-test-client-protocol.h
-libtest_client_la_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
-libtest_client_la_LIBADD = $(TEST_CLIENT_LIBS) libshared.la libtest-runner.la
+libtest_client_la_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS) $(CLIENT_CFLAGS)
+libtest_client_la_LIBADD =			\
+	$(TEST_CLIENT_LIBS)			\
+	libshared.la				\
+	libtest-runner.la			\
+	libtoytoolkit.la
 
 bad_buffer_weston_SOURCES = tests/bad-buffer-test.c
 bad_buffer_weston_CFLAGS = $(AM_CFLAGS) $(TEST_CLIENT_CFLAGS)
