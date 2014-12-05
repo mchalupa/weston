@@ -190,7 +190,7 @@ TEST(text_test)
 	wl_test_activate_surface(client->test->wl_test,
 				 client->surface->wl_surface);
 	client_roundtrip(client);
-	assert(client->input->keyboard->focus == client->surface);
+	assert(client->input->keyboard->focus == client->surface->wl_surface);
 
 	/* Activate test model and make sure we get enter event. */
 	wl_text_input_activate(text_input, client->input->wl_seat,

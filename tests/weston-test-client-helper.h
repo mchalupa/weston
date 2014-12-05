@@ -77,7 +77,7 @@ struct input {
 
 struct pointer {
 	struct wl_pointer *wl_pointer;
-	struct surface *focus;
+	struct wl_surface *focus;
 	int x;
 	int y;
 	uint32_t button;
@@ -86,7 +86,7 @@ struct pointer {
 
 struct keyboard {
 	struct wl_keyboard *wl_keyboard;
-	struct surface *focus;
+	struct wl_surface *focus;
 	uint32_t key;
 	uint32_t state;
 	uint32_t mods_depressed;
@@ -106,7 +106,7 @@ struct output {
 struct surface {
 	struct wl_surface *wl_surface;
 	struct wl_buffer *wl_buffer;
-	struct output *output;
+	struct wl_output *output;
 	int x;
 	int y;
 	int width;

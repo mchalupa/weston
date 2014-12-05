@@ -37,7 +37,8 @@ check_pointer(struct client *client, int x, int y)
 	/* Does global pointer map onto the surface? */
 	if (surface_contains(client->surface, x, y)) {
 		/* check that the surface has the pointer focus */
-		assert(client->input->pointer->focus == client->surface);
+		assert(client->input->pointer->focus
+			== client->surface->wl_surface);
 
 		/*
 		 * check that the local surface pointer maps
@@ -299,7 +300,7 @@ check_client_move(struct client *client, int x, int y)
 	move_client(client, x, y);
 
 	if (output_contains_client(client)) {
-		assert(client->surface->output == client->output);
+		assert(client->surface->output == client->output->wl_output);
 	} else {
 		assert(client->surface->output == NULL);
 	}
