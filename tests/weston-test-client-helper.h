@@ -117,6 +117,9 @@ struct surface {
 struct client *
 client_create(int x, int y, int width, int height);
 
+struct client *
+toytoolkit_client_create(int x, int y, int width, int height);
+
 struct wl_buffer *
 create_shm_buffer(struct client *client, int width, int height, void **pixels);
 

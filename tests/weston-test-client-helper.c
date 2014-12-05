@@ -527,13 +527,34 @@ static const struct wl_output_listener output_listener = {
 };
 
 static void
+bind_test(struct client *client, struct wl_registry *registry, uint32_t id)
+{
+	struct test *test;
+	assert(client->test == NULL && "Already has a wl_test");
+
+	test = xzalloc(sizeof *test);
+	if (registry) {
+		test->wl_test =
+			wl_registry_bind(registry, id,
+					 &wl_test_interface, 1);
+	} else {
+		assert(client->toytoolkit);
+		test->wl_test =
+			display_bind(client->toytoolkit->display,
+				     id, &wl_test_interface, 1);
+	}
+
+	wl_test_add_listener(test->wl_test, &test_listener, test);
+	client->test = test;
+}
+
+static void
 handle_global(void *data, struct wl_registry *registry,
 	      uint32_t id, const char *interface, uint32_t version)
 {
 	struct client *client = data;
 	struct input *input;
 	struct output *output;
-	struct test *test;
 	struct global *global;
 
 	global = xzalloc(sizeof *global);
@@ -568,12 +589,7 @@ handle_global(void *data, struct wl_registry *registry,
 				       &output_listener, output);
 		client->output = output;
 	} else if (strcmp(interface, "wl_test") == 0) {
-		test = xzalloc(sizeof *test);
-		test->wl_test =
-			wl_registry_bind(registry, id,
-					 &wl_test_interface, 1);
-		wl_test_add_listener(test->wl_test, &test_listener, test);
-		client->test = test;
+		bind_test(client, registry, id);
 	}
 }
 
@@ -651,6 +667,19 @@ log_handler(const char *fmt, va_list args)
 	vfprintf(stderr, fmt, args);
 }
 
+static void
+client_check(struct client *client)
+{
+	assert(client);
+	assert(client->wl_display);
+
+	/* must have wl_test interface */
+	assert(client->test);
+
+	/* must have an output */
+	assert(client->output);
+}
+
 struct client *
 client_create(int x, int y, int width, int height)
 {
@@ -673,14 +702,7 @@ client_create(int x, int y, int width, int height)
 	wl_display_dispatch(client->wl_display);
 	wl_display_roundtrip(client->wl_display);
 
-	/* must have WL_SHM_FORMAT_ARGB32 */
-	assert(client->has_argb);
-
-	/* must have wl_test interface */
-	assert(client->test);
-
-	/* must have an output */
-	assert(client->output);
+	client_check(client);
 
 	/* initialize the client surface */
 	surface = xzalloc(sizeof *surface);
@@ -696,12 +718,305 @@ client_create(int x, int y, int width, int height)
 
 	surface->width = width;
 	surface->height = height;
+
+	/* must have WL_SHM_FORMAT_ARGB32 */
+	assert(client->has_argb);
 	surface->wl_buffer = create_shm_buffer(client, width, height,
 					       &surface->data);
 
 	memset(surface->data, 64, width * height * 4);
 
 	move_client(client, x, y);
+
+	return client;
+}
+
+/*
+ * --- toytoolkit definitions -----------------------------------------
+ */
+
+static void
+toytoolkit_key_handler(struct window *window, struct input *input,
+		       uint32_t time, uint32_t key, uint32_t unicode,
+		       enum wl_keyboard_key_state state, void *data)
+{
+	struct client *client = data;
+
+	store_keyboard_key(client->input->keyboard, key, state);
+
+	/* XXX modifiers? */
+}
+
+static void
+toytoolkit_keyboard_focus_handler(struct window *window,
+				  struct input *input, void *data)
+{
+	struct client *client = data;
+	struct widget *widget;
+	struct wl_surface *wl_surface;
+
+	if (input) {
+		widget = input_get_focus_widget(input);
+		if (!widget)
+			return;
+
+		wl_surface = widget_get_wl_surface(widget);
+		store_keyboard_enter(client->input->keyboard, wl_surface);
+	} else {
+		store_keyboard_leave(client->input->keyboard,
+				     /* XXX hmm, is this right? */
+				     window_get_wl_surface(window));
+	}
+}
+
+static void
+toytoolkit_surface_output_handler(struct window *window, struct output *output,
+				  int enter, void *data)
+{
+	struct client *client = data;
+	struct rectangle rect;
+
+	/* if the output was not allocated when we were handling globals,
+	 * do it now */
+	if (client->output->width == 0 && client->output->height == 0
+	    && client->output->wl_output == output_get_wl_output(output)) {
+		output_get_allocation(output, &rect);
+		client->output->width = rect.width;
+		client->output->height = rect.height;
+	}
+
+	if (enter)
+		store_surface_enter(client->surface,
+				    output_get_wl_output(output));
+	else
+		store_surface_leave(client->surface,
+				    output_get_wl_output(output));
+}
+
+static void
+toytoolkit_state_changed_handler(struct window *window, void *data)
+{
+	struct rectangle rect;
+
+	window_get_allocation(window, &rect);
+
+	fprintf(stderr, "test-client: state changed - size: %dx%d %s %s %s\n",
+		rect.width, rect.height,
+		window_is_maximized(window) ? "maximized" : "",
+		window_is_fullscreen(window) ? "fullscreen" : "",
+		window_is_resizing(window) ? "resizing" : "");
+
+	(void) data;
+}
+
+static int
+toytoolkit_pointer_enter_handler(struct widget *widget, struct input *input,
+				 float x, float y, void *data)
+{
+	struct client *client = data;
+
+	store_pointer_enter(client->input->pointer,
+			    widget_get_wl_surface(widget),
+			    wl_fixed_from_double(x),
+			    wl_fixed_from_double(y));
+	return 0;
+}
+
+static void
+toytoolkit_pointer_leave_handler(struct widget *widget, struct input *input,
+				 void *data)
+{
+	struct client *client = data;
+
+	store_pointer_leave(client->input->pointer,
+			    widget_get_wl_surface(widget));
+}
+
+static int
+toytoolkit_pointer_motion_handler(struct widget *widget, struct input *input,
+				  uint32_t time, float x, float y, void *data)
+{
+	struct client *client = data;
+
+	store_pointer_motion(client->input->pointer,
+			     wl_fixed_from_double(x),
+			     wl_fixed_from_double(y));
+	return 0;
+}
+
+static void
+toytoolkit_pointer_button_handler(struct widget *widget, struct input *input,
+				  uint32_t time, uint32_t button,
+				  enum wl_pointer_button_state state, void *data)
+{
+
+	struct client *client = data;
+
+	store_pointer_button(client->input->pointer, button, state);
+}
+
+static void
+toytoolkit_pointer_axis_handler(struct widget *widget, struct input *input,
+				uint32_t time, uint32_t axis, wl_fixed_t value,
+				void *data)
+{
+	struct client *client = data;
+
+	store_pointer_axis(client->input->pointer, axis, value);
+}
+
+static void
+toytoolkit_global_handler(struct display *display, uint32_t name,
+			  const char *interface, uint32_t version, void *data)
+{
+	struct client *client = data;
+	struct output *output;
+	struct input *input;
+	struct rectangle rect;
+
+	if (strcmp(interface, "wl_test") == 0) {
+		bind_test(client, NULL, name);
+	} else if (strcmp(interface, "wl_compositor") == 0) {
+		client->wl_compositor = display_get_compositor(display);
+	} else if (strcmp(interface, "wl_output") == 0) {
+		output = xzalloc(sizeof(struct output));
+		client->output = output;
+		output->wl_output
+			= output_get_wl_output(display_get_output(display));
+		output_get_allocation(display_get_output(display), &rect);
+		output->width = rect.width;
+		output->height = rect.height;
+	} else if (strcmp(interface, "wl_seat") == 0) {
+		input = display_get_input(display);
+
+		client->input = xzalloc(sizeof(struct input));
+		client->input->keyboard = xzalloc(sizeof(struct keyboard));
+		client->input->pointer = xzalloc(sizeof(struct keyboard));
+
+		client->input->wl_seat = input_get_seat(input);
+		client->input->pointer->wl_pointer = input_get_wl_pointer(input);
+		client->input->keyboard->wl_keyboard = input_get_wl_keyboard(input);
+	}
+}
+
+static void
+toytoolkit_redraw_handler(struct widget *widget, void *data)
+{
+	struct client *client = data;
+	struct rectangle rect;
+
+	widget_get_allocation(widget, &rect);
+	client->surface->width = rect.width;
+	client->surface->height = rect.height;
+
+	/* we must add a decoration size to get the size of
+	 * server allocated area */
+	window_get_decoration_size(client->toytoolkit->window,
+				   &rect.width, &rect.height);
+	client->surface->width += rect.width;
+	client->surface->height += rect.height;
+}
+
+static void
+sync_surface(struct client *client);
+
+/* keep surface in client in sync with the one in display */
+static void
+surface_sync_callback(void *data, struct wl_callback *callback, uint32_t time)
+{
+	struct client *client = data;
+	struct toytoolkit *tk = client->toytoolkit;
+	assert(tk);
+
+	wl_callback_destroy(callback);
+
+	assert(client->surface);
+	assert(client->surface->wl_surface
+		== window_get_wl_surface(client->toytoolkit->window));
+
+	client->surface->wl_buffer
+		= display_get_buffer_for_surface(tk->display,
+						 window_get_surface(tk->window));
+	assert(client->surface->wl_buffer);
+
+	sync_surface(client);
+}
+
+static const struct wl_callback_listener frame_cb = {
+	surface_sync_callback
+};
+
+static void
+sync_surface(struct client *client)
+{
+	struct wl_callback *cb;
+
+	cb = wl_surface_frame(window_get_wl_surface(client->toytoolkit->window));
+	assert(cb);
+
+	wl_callback_add_listener(cb, &frame_cb, client);
+}
+
+struct client *
+toytoolkit_client_create(int x, int y, int width, int height)
+{
+	struct display *display;
+	struct client *client;
+	struct toytoolkit *tk;
+	char *argv[] = {"test-client", NULL};
+	int argc = 1;
+
+	client = xzalloc(sizeof *client);
+	wl_list_init(&client->global_list);
+
+	tk = xzalloc(sizeof *tk);
+	client->toytoolkit = tk;
+
+	display	= display_create(&argc, argv);
+	assert(display);
+	display_set_user_data(display, client);
+
+	tk->display = display;
+	tk->window = window_create(display);
+	tk->widget = window_frame_create(tk->window, client);
+	client->wl_display = display_get_display(display);
+
+	/* make sure all toytoolkit handlers have been dispatched now */
+	wl_display_roundtrip(client->wl_display);
+
+	/* populate client with objects */
+	display_set_global_handler(display, toytoolkit_global_handler);
+	client_check(client);
+
+	window_set_title(tk->window, "toytoolkit test-client");
+	window_set_user_data(tk->window, client);
+	window_set_key_handler(tk->window, toytoolkit_key_handler);
+	window_set_keyboard_focus_handler(tk->window,
+					  toytoolkit_keyboard_focus_handler);
+	window_set_output_handler(tk->window, toytoolkit_surface_output_handler);
+	window_set_state_changed_handler(tk->window,
+					 toytoolkit_state_changed_handler);
+
+	widget_set_enter_handler(tk->widget, toytoolkit_pointer_enter_handler);
+	widget_set_leave_handler(tk->widget, toytoolkit_pointer_leave_handler);
+	widget_set_motion_handler(tk->widget, toytoolkit_pointer_motion_handler);
+	widget_set_button_handler(tk->widget, toytoolkit_pointer_button_handler);
+	widget_set_axis_handler(tk->widget, toytoolkit_pointer_axis_handler);
+	widget_set_redraw_handler(tk->widget, toytoolkit_redraw_handler);
+
+	/* set surface. This surface from toytoolkit will be kept in sync
+	 * with client->surface, so that we can use all the tricks
+	 * as before */
+	client->surface = xzalloc(sizeof *client->surface);
+	client->surface->wl_surface = window_get_wl_surface(tk->window);
+	client->surface->width = width;
+	client->surface->height = height;
+
+	sync_surface(client);
+
+	window_schedule_resize(tk->window, width, height);
+	move_client(client, x, y);
+	client_roundtrip(client);
 
 	return client;
 }
