@@ -136,6 +136,15 @@ void
 move_client(struct client *client, int x, int y);
 
 void
+pointer_simulate_move(struct client *client, int x1, int y1, int x2, int y2);
+
+void
+pointer_simulate_drag(struct client *client, int x1, int y1, int x2, int y2);
+
+void
+pointer_click(struct client *client, uint32_t button);
+
+void
 client_roundtrip(struct client *client);
 
 struct wl_callback *
