@@ -131,7 +131,7 @@ move_pointer(struct wl_client *client, struct wl_resource *resource,
 	struct weston_seat *seat = get_seat(test);
 	struct weston_pointer *pointer = seat->pointer;
 
-	notify_motion(seat, 100,
+	notify_motion(seat, weston_compositor_get_time(),
 		      wl_fixed_from_int(x) - pointer->x,
 		      wl_fixed_from_int(y) - pointer->y);
 
@@ -145,7 +145,7 @@ send_button(struct wl_client *client, struct wl_resource *resource,
 	struct weston_test *test = wl_resource_get_user_data(resource);
 	struct weston_seat *seat = get_seat(test);
 
-	notify_button(seat, 100, button, state);
+	notify_button(seat, weston_compositor_get_time(), button, state);
 }
 
 static void
@@ -177,7 +177,8 @@ send_key(struct wl_client *client, struct wl_resource *resource,
 	struct weston_test *test = wl_resource_get_user_data(resource);
 	struct weston_seat *seat = get_seat(test);
 
-	notify_key(seat, 100, key, state, STATE_UPDATE_AUTOMATIC);
+	notify_key(seat, weston_compositor_get_time(),
+		   key, state, STATE_UPDATE_AUTOMATIC);
 }
 
 #ifdef ENABLE_EGL
