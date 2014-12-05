@@ -93,6 +93,9 @@ display_get_compositor(struct display *display);
 struct output *
 display_get_output(struct display *display);
 
+struct input *
+display_get_input(struct display *display);
+
 uint32_t
 display_get_serial(struct display *display);
 
@@ -612,6 +615,15 @@ output_get_allocation(struct output *output, struct rectangle *allocation);
 
 struct wl_output *
 output_get_wl_output(struct output *output);
+
+struct wl_pointer *
+input_get_wl_pointer(struct input *input);
+
+struct wl_keyboard *
+input_get_wl_keyboard(struct input *input);
+
+struct wl_touch *
+input_get_wl_touch(struct input *input);
 
 enum wl_output_transform
 output_get_transform(struct output *output);
