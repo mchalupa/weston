@@ -72,11 +72,20 @@ frame_callback_set(struct wl_surface *surface, int *done)
 	return callback;
 }
 
+static int
+client_dispatch(struct client *client)
+{
+	if (client->toytoolkit)
+		return display_dispatch(client->toytoolkit->display, -1);
+	else
+		return wl_display_dispatch(client->wl_display);
+}
+
 int
 frame_callback_wait_nofail(struct client *client, int *done)
 {
 	while (!*done) {
-		if (wl_display_dispatch(client->wl_display) < 0)
+		if (client_dispatch(client) < 0)
 			return 0;
 	}
 
