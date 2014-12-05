@@ -431,9 +431,27 @@ test_handle_n_egl_buffers(void *data, struct wl_test *wl_test, uint32_t n)
 	test->n_egl_buffers = n;
 }
 
+static void
+test_handle_geometry(void *data, struct wl_test *wl_test,
+		     struct wl_surface *surface,
+		     uint32_t width, uint32_t height,
+		     int32_t x, int32_t y)
+{
+	struct test *test = data;
+
+	test->geometry.width = width;
+	test->geometry.height = height;
+	test->geometry.x = x;
+	test->geometry.y = y;
+
+	fprintf(stderr, "test-client: got geometry w: %u, h: %u, x: %d y: %d\n",
+		width, height, x, y);
+}
+
 static const struct wl_test_listener test_listener = {
 	test_handle_pointer_position,
 	test_handle_n_egl_buffers,
+	test_handle_geometry,
 };
 
 static void

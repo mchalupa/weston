@@ -67,6 +67,12 @@ struct test {
 	int pointer_x;
 	int pointer_y;
 	uint32_t n_egl_buffers;
+	struct {
+		uint32_t width;
+		uint32_t height;
+		int32_t x;
+		int32_t y;
+	} geometry;
 };
 
 struct input {
