@@ -84,6 +84,23 @@ frame_callback_wait_nofail(struct client *client, int *done)
 }
 
 void
+client_roundtrip(struct client *client)
+{
+	struct wl_callback *cb;
+	int done = 0;
+
+	if (client->toytoolkit) {
+		cb = wl_display_sync(client->wl_display);
+		/* use frame_listener, it does exactly what we need */
+		wl_callback_add_listener(cb, &frame_listener, &done);
+
+		while(!done)
+			assert(display_dispatch(client->toytoolkit->display, -1) > 0);
+	} else
+		assert(wl_display_roundtrip(client->wl_display) >= 0);
+}
+
+void
 move_client(struct client *client, int x, int y)
 {
 	struct surface *surface = client->surface;
