@@ -3311,6 +3311,12 @@ input_get_modifiers(struct input *input)
 	return input->modifiers;
 }
 
+struct xkb_state *
+input_get_xkb_state(struct input *input)
+{
+	return input->xkb.state;
+}
+
 struct widget *
 input_get_focus_widget(struct input *input)
 {
