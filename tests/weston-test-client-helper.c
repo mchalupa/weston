@@ -29,6 +29,8 @@
 #include <errno.h>
 #include <sys/mman.h>
 
+#include <xkbcommon/xkbcommon.h>
+
 #include "../shared/os-compatibility.h"
 #include "../clients/window.h"
 #include "weston-test-client-helper.h"
@@ -736,15 +738,44 @@ client_create(int x, int y, int width, int height)
  */
 
 static void
+store_keyboard_modifiers_if_changed(struct keyboard *keyboard, uint32_t dep,
+				    uint32_t lat, uint32_t lck, uint32_t grp)
+{
+	if (keyboard->mods_depressed == dep &&
+	    keyboard->mods_latched == lat &&
+	    keyboard->mods_locked == lck &&
+	    keyboard->group == grp)
+		return;
+
+	store_keyboard_modifiers(keyboard, dep, lat, lck, grp);
+}
+
+static void
 toytoolkit_key_handler(struct window *window, struct input *input,
 		       uint32_t time, uint32_t key, uint32_t unicode,
 		       enum wl_keyboard_key_state state, void *data)
 {
 	struct client *client = data;
+	struct xkb_state *xkbstate;
+	uint32_t depressed, latched, locked, group;
 
 	store_keyboard_key(client->input->keyboard, key, state);
 
-	/* XXX modifiers? */
+	assert(input);
+	xkbstate = input_get_xkb_state(input);
+	if (!xkbstate)
+		return;
+
+	depressed = xkb_state_serialize_mods(xkbstate, XKB_STATE_MODS_DEPRESSED);
+	latched = xkb_state_serialize_mods(xkbstate, XKB_STATE_MODS_LATCHED);
+	locked = xkb_state_serialize_mods(xkbstate, XKB_STATE_MODS_LOCKED);
+	group = xkb_state_serialize_group(xkbstate, XKB_STATE_LAYOUT_LOCKED);
+
+	/* toytoolkit gives us no way to find out if the modifiers event
+	 * came or not. To not print that we got modifiers all the time,
+	 * print it when the modifiers are changed */
+	store_keyboard_modifiers_if_changed(client->input->keyboard,
+					    depressed, latched, locked, group);
 }
 
 static void
@@ -752,19 +783,15 @@ toytoolkit_keyboard_focus_handler(struct window *window,
 				  struct input *input, void *data)
 {
 	struct client *client = data;
-	struct widget *widget;
 	struct wl_surface *wl_surface;
 
 	if (input) {
-		widget = input_get_focus_widget(input);
-		if (!widget)
-			return;
+		wl_surface = window_get_wl_surface(window);
+		assert(wl_surface);
 
-		wl_surface = widget_get_wl_surface(widget);
 		store_keyboard_enter(client->input->keyboard, wl_surface);
 	} else {
 		store_keyboard_leave(client->input->keyboard,
-				     /* XXX hmm, is this right? */
 				     window_get_wl_surface(window));
 	}
 }
