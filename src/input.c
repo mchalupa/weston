@@ -1633,6 +1633,8 @@ pointer_set_cursor(struct wl_client *client, struct wl_resource *resource,
 	struct weston_pointer *pointer = wl_resource_get_user_data(resource);
 	struct weston_surface *surface = NULL;
 
+	assert(pointer && "Always must have pointer");
+
 	if (surface_resource)
 		surface = wl_resource_get_user_data(surface_resource);
 
@@ -1681,6 +1683,9 @@ pointer_set_cursor(struct wl_client *client, struct wl_resource *resource,
 static void
 pointer_release(struct wl_client *client, struct wl_resource *resource)
 {
+	if (wl_resource_get_user_data(resource) == NULL)
+		weston_log("Destroying intact pointer: %d\n", wl_resource_get_id(resource));
+
 	wl_resource_destroy(resource);
 }
 
@@ -1696,13 +1701,22 @@ seat_get_pointer(struct wl_client *client, struct wl_resource *resource,
 	struct weston_seat *seat = wl_resource_get_user_data(resource);
 	struct wl_resource *cr;
 
+	/* getting pointer before it has been initialized. The client
+	 * deserves to be killed by an error */
 	if (!seat->pointer)
 		return;
 
         cr = wl_resource_create(client, &wl_pointer_interface,
-				wl_resource_get_version(resource), id);
+				3, id);
 	if (cr == NULL) {
 		wl_client_post_no_memory(client);
+		return;
+	}
+
+	if (seat->pointer_device_count == 0) {
+		weston_log("Creating intact pointer: %d\n", wl_resource_get_id(cr));
+		wl_resource_set_implementation(cr, &pointer_interface, NULL, NULL);
+		wl_resource_set_intact(cr);
 		return;
 	}
 
@@ -1773,9 +1787,16 @@ seat_get_keyboard(struct wl_client *client, struct wl_resource *resource,
 		return;
 
         cr = wl_resource_create(client, &wl_keyboard_interface,
-				wl_resource_get_version(resource), id);
+				3, id);
 	if (cr == NULL) {
 		wl_client_post_no_memory(client);
+		return;
+	}
+
+	if (seat->keyboard_device_count == 0) {
+		weston_log("Creating intact keyboard\n");
+		wl_resource_set_intact(cr);
+		wl_resource_set_implementation(cr, &keyboard_interface, NULL, NULL);
 		return;
 	}
 
