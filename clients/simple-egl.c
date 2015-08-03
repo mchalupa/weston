@@ -544,21 +544,29 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
 	struct wl_buffer *buffer;
 	struct wl_cursor *cursor = display->default_cursor;
 	struct wl_cursor_image *image;
+	struct wl_shm_pool *pool;
+
+	int width = 640, height = 640, stride = width*4;
+	int size = height * stride;
+	int fd = os_create_anonymous_file(size);
+	assert(fd >= 0);
+
+	pool = wl_shm_create_pool(display->shm, fd, size);
+	buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride,
+					   WL_SHM_FORMAT_ARGB8888);
+	wl_shm_pool_destroy(pool);
+	assert(buffer);
 
 	if (display->window->fullscreen)
 		wl_pointer_set_cursor(pointer, serial, NULL, 0, 0);
 	else if (cursor) {
 		image = display->default_cursor->images[0];
-		buffer = wl_cursor_image_get_buffer(image);
-		if (!buffer)
-			return;
 		wl_pointer_set_cursor(pointer, serial,
 				      display->cursor_surface,
-				      image->hotspot_x,
-				      image->hotspot_y);
+				      0, 0);
 		wl_surface_attach(display->cursor_surface, buffer, 0, 0);
 		wl_surface_damage(display->cursor_surface, 0, 0,
-				  image->width, image->height);
+				  width, height);
 		wl_surface_commit(display->cursor_surface);
 	}
 }

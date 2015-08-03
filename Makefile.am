@@ -495,7 +495,7 @@ nodist_weston_simple_egl_SOURCES =		\
 	protocol/ivi-application-protocol.c		\
 	protocol/ivi-application-client-protocol.h
 weston_simple_egl_CFLAGS = $(AM_CFLAGS) $(SIMPLE_EGL_CLIENT_CFLAGS)
-weston_simple_egl_LDADD = $(SIMPLE_EGL_CLIENT_LIBS) -lm
+weston_simple_egl_LDADD = $(SIMPLE_EGL_CLIENT_LIBS) libshared.la -lm
 endif
 
 noinst_LTLIBRARIES += libtoytoolkit.la
